@@ -55,3 +55,18 @@ class ContractResponse(BaseModel):
 
     contract_name: str
     contract_schema: Dict[str, Any]
+
+
+class RunStatusResponse(BaseModel):
+    """Status payload for a background pipeline run."""
+
+    run_id: str
+    status: str
+    current_stage: str
+    stage_index: int
+    stage_total: int
+    started_at: str
+    updated_at: str
+    messages: List[str] = Field(default_factory=list)
+    error: Optional[str] = None
+    result_state: Optional[ReviewStateModel] = None

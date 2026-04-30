@@ -24,6 +24,7 @@ class ResearchDataModel(BaseModel):
     question: str = ""
     methodology: str = ""
     claims: List[str] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
 class AuditResultsModel(BaseModel):

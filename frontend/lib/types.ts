@@ -1,0 +1,31 @@
+export type HealthResponse = {
+  status: string;
+  agents_registered: number;
+};
+
+export type ReviewState = {
+  raw_text: string;
+  research_data: Record<string, unknown>;
+  audit_results: Record<string, unknown>;
+  critique_notes: string;
+  final_feedback: string;
+  logs: string[];
+};
+
+export type RunStatus = {
+  run_id: string;
+  status: string;
+  current_stage: string;
+  stage_index: number;
+  stage_total: number;
+  started_at: string;
+  updated_at: string;
+  messages: string[];
+  error?: string | null;
+  result_state?: ReviewState | null;
+};
+
+export type PipelineRunRequest = {
+  parser_input_path?: string;
+  state?: Partial<ReviewState>;
+};
