@@ -9,6 +9,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from src.api.run_status import append_message, create_run, get_run, run_to_dict, update_run
 from src.api.schemas import PipelineExecuteRequest, ReviewStateEnvelope, RunStatusResponse
 from src.state import ReviewStateModel, create_initial_state, validate_review_state
+from src.source_ingestion import resolve_public_paper_source
 from src.workflow.main import resume_from_stage, run_full_pipeline, run_until_stage
 
 router = APIRouter(prefix="/api/v1/pipelines/review", tags=["pipelines"])
@@ -40,24 +41,80 @@ def _resolve_state(payload: PipelineExecuteRequest):
     return validate_review_state(payload.state.model_dump())
 
 
+def _apply_source_payload(run_id: str, payload: PipelineExecuteRequest, state: dict) -> dict:
+    """Fetch and persist a public source URL when one is supplied."""
+    if not payload.paper_url:
+        return state
+
+    update_run(
+        run_id,
+        source_status="fetching",
+        source_url=payload.paper_url,
+    )
+    append_message(run_id, f"Fetching paper source from {payload.paper_url}")
+
+    try:
+        source_result = resolve_public_paper_source(payload.paper_url, run_id=run_id)
+    except Exception as exc:
+        update_run(
+            run_id,
+            source_status="failed",
+            error=str(exc),
+        )
+        append_message(run_id, f"Source ingestion failed: {exc}")
+        raise
+
+    update_run(
+        run_id,
+        source_status="fetched",
+        source_url=source_result.source_url,
+        resolved_source_url=source_result.resolved_url,
+        source_content_type=source_result.content_type,
+        source_artifact_path=source_result.artifact_path,
+    )
+    append_message(run_id, f"Source fetched and stored at {source_result.artifact_path}")
+
+    merged_text = source_result.text
+    if state.get("raw_text"):
+        merged_text = f"{state['raw_text']}\n\n{source_result.text}".strip()
+
+    state["raw_text"] = merged_text
+
+    metadata = state.setdefault("research_data", {}).setdefault("metadata", {})
+    if isinstance(metadata, dict):
+        metadata.update(source_result.metadata())
+
+    state.setdefault("logs", []).append(
+        f"Pipeline source ingestion: resolved {source_result.resolved_url} using {source_result.content_type}."
+    )
+    return state
+
+
 def _run_pipeline_background(run_id: str, payload: PipelineExecuteRequest) -> None:
     input_state = _resolve_state(payload)
 
     update_run(
         run_id,
         status="running",
-        current_stage="parser",
-        stage_index=1,
+        current_stage="source" if payload.paper_url else "parser",
+        stage_index=0 if payload.paper_url else 1,
     )
-    append_message(run_id, "Stage parser started.")
 
     try:
+        input_state = _apply_source_payload(run_id, payload, input_state)
+        update_run(
+            run_id,
+            current_stage="parser",
+            stage_index=1,
+        )
+        append_message(run_id, "Stage parser started.")
         with _temporary_parser_input_path(payload.parser_input_path):
             result = run_full_pipeline(input_state)
     except Exception as exc:
         update_run(
             run_id,
             status="failed",
+            source_status="failed" if payload.paper_url else None,
             error=str(exc),
         )
         append_message(run_id, f"Run failed: {exc}")
@@ -79,6 +136,12 @@ def execute_pipeline(payload: PipelineExecuteRequest) -> ReviewStateEnvelope:
     input_state = _resolve_state(payload)
 
     try:
+        if payload.paper_url:
+            source_result = resolve_public_paper_source(payload.paper_url)
+            input_state["raw_text"] = source_result.text if not input_state["raw_text"] else f"{input_state['raw_text']}\n\n{source_result.text}".strip()
+            metadata = input_state.setdefault("research_data", {}).setdefault("metadata", {})
+            if isinstance(metadata, dict):
+                metadata.update(source_result.metadata())
         with _temporary_parser_input_path(payload.parser_input_path):
             result = run_full_pipeline(input_state)
     except Exception as exc:
@@ -93,7 +156,7 @@ def start_pipeline_run(
     background_tasks: BackgroundTasks,
 ) -> RunStatusResponse:
     """Start a background pipeline run and return its run status."""
-    run = create_run(stage_total=1)
+    run = create_run(stage_total=1, source_url=payload.paper_url)
     background_tasks.add_task(_run_pipeline_background, run.run_id, payload)
     return RunStatusResponse(**run_to_dict(run))
 

@@ -21,6 +21,11 @@ class RunStatus:
     messages: List[str] = field(default_factory=list)
     error: Optional[str] = None
     result_state: Optional[Dict[str, Any]] = None
+    source_url: Optional[str] = None
+    resolved_source_url: Optional[str] = None
+    source_content_type: Optional[str] = None
+    source_artifact_path: Optional[str] = None
+    source_status: Optional[str] = None
 
 
 _RUN_STORE: Dict[str, RunStatus] = {}
@@ -31,7 +36,7 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def create_run(stage_total: int) -> RunStatus:
+def create_run(stage_total: int, source_url: Optional[str] = None) -> RunStatus:
     """Create a new run record and return it."""
     run_id = str(uuid4())
     now = _now_iso()
@@ -44,6 +49,8 @@ def create_run(stage_total: int) -> RunStatus:
         started_at=now,
         updated_at=now,
         messages=["Run queued."],
+        source_url=source_url,
+        source_status="pending" if source_url else None,
     )
     with _RUN_LOCK:
         _RUN_STORE[run_id] = status
@@ -96,4 +103,9 @@ def run_to_dict(status: RunStatus) -> Dict[str, Any]:
         "messages": list(status.messages),
         "error": status.error,
         "result_state": status.result_state,
+        "source_url": status.source_url,
+        "resolved_source_url": status.resolved_source_url,
+        "source_content_type": status.source_content_type,
+        "source_artifact_path": status.source_artifact_path,
+        "source_status": status.source_status,
     }

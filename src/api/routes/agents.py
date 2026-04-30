@@ -14,6 +14,7 @@ from src.api.schemas import (
     ReviewStateEnvelope,
 )
 from src.state import ReviewStateModel, validate_review_state
+from src.source_ingestion import resolve_public_paper_source
 
 router = APIRouter(prefix="/api/v1/agents", tags=["agents"])
 
@@ -62,6 +63,17 @@ def execute_single_agent(
         raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_name}")
 
     input_state = validate_review_state(payload.state.model_dump())
+
+    if payload.paper_url:
+        source_result = resolve_public_paper_source(payload.paper_url)
+        input_state["raw_text"] = (
+            source_result.text
+            if not input_state["raw_text"]
+            else f"{input_state['raw_text']}\n\n{source_result.text}".strip()
+        )
+        metadata = input_state.setdefault("research_data", {}).setdefault("metadata", {})
+        if isinstance(metadata, dict):
+            metadata.update(source_result.metadata())
 
     try:
         with _temporary_parser_input_path(payload.parser_input_path):

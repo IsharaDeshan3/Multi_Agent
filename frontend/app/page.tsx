@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { HealthPanel } from "../components/HealthPanel";
 import { LogPanel } from "../components/LogPanel";
+import { SourcePanel } from "../components/SourcePanel";
 import { RunPanel } from "../components/RunPanel";
 import { WorkflowPanel } from "../components/WorkflowPanel";
 import { getHealth, getRunStatus, startRun } from "../lib/api";
@@ -63,11 +64,15 @@ export default function DashboardPage() {
   const handleStart = async (payload: {
     parserInputPath?: string;
     rawText?: string;
+    paperUrl?: string;
   }) => {
     setIsStarting(true);
     setRunError(null);
 
     const requestPayload: PipelineRunRequest = {};
+    if (payload.paperUrl) {
+      requestPayload.paper_url = payload.paperUrl;
+    }
     if (payload.parserInputPath) {
       requestPayload.parser_input_path = payload.parserInputPath;
     }
@@ -102,6 +107,7 @@ export default function DashboardPage() {
           error={healthError}
           lastUpdated={healthCheckedAt}
         />
+        <SourcePanel runStatus={runStatus} />
         <WorkflowPanel runStatus={runStatus} />
         <RunPanel onStart={handleStart} isStarting={isStarting} />
       </section>
