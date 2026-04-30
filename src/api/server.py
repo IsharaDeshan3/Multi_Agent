@@ -17,16 +17,19 @@ app = FastAPI(
     description="Parser-first LangGraph foundation with shared ReviewState contract.",
 )
 
+default_frontend_origins = "http://localhost:3000,http://localhost:3001"
+local_dev_origin_regex = r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
 frontend_origins = [
     origin.strip()
-    for origin in os.getenv("FRONTEND_ORIGINS", "http://localhost:3000").split(",")
+    for origin in (os.getenv("FRONTEND_ORIGINS") or default_frontend_origins).split(",")
     if origin.strip()
 ]
 if frontend_origins:
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=frontend_origins,
-        allow_credentials=True,
+        allow_origins=["*"],
+        allow_origin_regex=local_dev_origin_regex,
+        allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
     )
