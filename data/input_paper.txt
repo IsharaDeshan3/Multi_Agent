@@ -1,7 +1,0 @@
-Research Question: How can sequential multi-agent systems improve the reliability of academic review?
-Methodology: We evaluate a parser-auditor-critic-integrator pipeline over sample papers and compare consistency.
-
-Claims:
-- Sequential state contracts reduce integration errors.
-- Observability logs improve debugging and grading traceability.
-- Structured critiques are more actionable for researchers.

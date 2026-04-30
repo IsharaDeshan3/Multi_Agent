@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { HealthPanel } from "../components/HealthPanel";
 import { LogPanel } from "../components/LogPanel";
+import { ReportPanel } from "../components/ReportPanel";
 import { SourcePanel } from "../components/SourcePanel";
 import { RunPanel } from "../components/RunPanel";
 import { WorkflowPanel } from "../components/WorkflowPanel";
@@ -112,8 +113,9 @@ export default function DashboardPage() {
         <RunPanel onStart={handleStart} isStarting={isStarting} />
       </section>
 
-      <section className="grid">
+      <section className="grid report-grid">
         <LogPanel runStatus={runStatus} error={runError} />
+        <ReportPanel runStatus={runStatus} />
       </section>
     </main>
   );
