@@ -23,9 +23,23 @@ export type RunStatus = {
   messages: string[];
   error?: string | null;
   result_state?: ReviewState | null;
+  source_url?: string | null;
+  resolved_source_url?: string | null;
+  source_content_type?: string | null;
+  source_artifact_path?: string | null;
+  source_status?: string | null;
 };
 
 export type PipelineRunRequest = {
   parser_input_path?: string;
+  paper_url?: string;
   state?: Partial<ReviewState>;
+};
+
+export type SourceSummary = {
+  source_url?: string | null;
+  resolved_source_url?: string | null;
+  source_content_type?: string | null;
+  source_artifact_path?: string | null;
+  source_status?: string | null;
 };

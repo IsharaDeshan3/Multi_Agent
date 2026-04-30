@@ -1,18 +1,30 @@
 import { useState } from "react";
 
 type RunPanelProps = {
-  onStart: (payload: { parserInputPath?: string; rawText?: string }) => void;
+  onStart: (payload: {
+    parserInputPath?: string;
+    rawText?: string;
+    paperUrl?: string;
+  }) => void;
   isStarting: boolean;
 };
 
 export function RunPanel({ onStart, isStarting }: RunPanelProps) {
   const [parserInputPath, setParserInputPath] = useState("");
   const [rawText, setRawText] = useState("");
+  const [paperUrl, setPaperUrl] = useState("");
 
   return (
     <section className="panel">
       <h2>Run Controls</h2>
       <div className="controls">
+        <label htmlFor="paper-url">Online paper URL (optional)</label>
+        <input
+          id="paper-url"
+          value={paperUrl}
+          onChange={(event) => setPaperUrl(event.target.value)}
+          placeholder="https://arxiv.org/abs/... or a publisher PDF"
+        />
         <label htmlFor="parser-input">Parser input path (optional)</label>
         <input
           id="parser-input"
@@ -32,6 +44,7 @@ export function RunPanel({ onStart, isStarting }: RunPanelProps) {
           disabled={isStarting}
           onClick={() =>
             onStart({
+              paperUrl: paperUrl || undefined,
               parserInputPath: parserInputPath || undefined,
               rawText: rawText || undefined,
             })

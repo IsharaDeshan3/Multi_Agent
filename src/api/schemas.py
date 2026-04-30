@@ -22,6 +22,7 @@ class AgentExecuteRequest(BaseModel):
 
     state: ReviewStateModel = Field(default_factory=ReviewStateModel)
     parser_input_path: Optional[str] = None
+    paper_url: Optional[str] = None
 
 
 class PipelineExecuteRequest(BaseModel):
@@ -29,6 +30,7 @@ class PipelineExecuteRequest(BaseModel):
 
     state: Optional[ReviewStateModel] = None
     parser_input_path: Optional[str] = None
+    paper_url: Optional[str] = None
 
 
 class ReviewStateEnvelope(BaseModel):
@@ -70,3 +72,8 @@ class RunStatusResponse(BaseModel):
     messages: List[str] = Field(default_factory=list)
     error: Optional[str] = None
     result_state: Optional[ReviewStateModel] = None
+    source_url: Optional[str] = None
+    resolved_source_url: Optional[str] = None
+    source_content_type: Optional[str] = None
+    source_artifact_path: Optional[str] = None
+    source_status: Optional[str] = None

@@ -72,7 +72,12 @@ def parser_node(state: ReviewState) -> ReviewState:
     else:
         parsed_data = extract_research_data(content)
 
+    existing_metadata = normalized["research_data"].get("metadata", {})
+    if not isinstance(existing_metadata, dict):
+        existing_metadata = {}
+
     parsed_data["metadata"] = {
+        **existing_metadata,
         "mode": mode,
         "sources": source_labels,
         "warnings": warnings,
