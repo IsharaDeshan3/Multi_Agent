@@ -75,5 +75,6 @@ class RunStatusResponse(BaseModel):
     source_url: Optional[str] = None
     resolved_source_url: Optional[str] = None
     source_content_type: Optional[str] = None
+    source_format: Optional[str] = None
     source_artifact_path: Optional[str] = None
     source_status: Optional[str] = None

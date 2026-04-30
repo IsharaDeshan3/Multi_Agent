@@ -32,6 +32,9 @@ def test_parser_node_merges_state_and_file_sources(tmp_path, monkeypatch) -> Non
     assert updated["research_data"]["methodology"] == "Simulated review pipeline."
     assert isinstance(updated["research_data"]["claims"], list)
     assert any("File claim one." in claim for claim in updated["research_data"]["claims"])
+    assert updated["research_data"]["source_format"] == "markdown"
+    assert updated["research_data"]["extraction_confidence"] >= 1
+    assert isinstance(updated["research_data"]["link_map"], list)
     assert updated["research_data"]["metadata"]["mode"] == "deterministic"
     assert str(paper) in updated["research_data"]["metadata"]["sources"]
     assert any("Parser Agent" in line for line in updated["logs"])

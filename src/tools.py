@@ -115,6 +115,107 @@ def normalize_text(raw_text: str) -> str:
     return "\n".join(lines).strip()
 
 
+def normalize_markdown_text(raw_text: str) -> str:
+    """Normalize text into a Markdown-friendly representation."""
+    normalized = normalize_text(raw_text)
+    lines: List[str] = []
+    heading_hints = {
+        "abstract",
+        "introduction",
+        "background",
+        "research question",
+        "question",
+        "objective",
+        "aim",
+        "methodology",
+        "methods",
+        "results",
+        "discussion",
+        "conclusion",
+        "limitations",
+        "references",
+    }
+
+    for line in normalized.split("\n"):
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        lowered = stripped.lower().rstrip(":")
+        if lowered in heading_hints:
+            lines.append(f"## {stripped.rstrip(':')}")
+            continue
+
+        if stripped.startswith("- ") or re.match(r"^\d+[\.)]\s+", stripped):
+            lines.append(stripped)
+            continue
+
+        if len(stripped) <= 80 and (stripped.isupper() or (stripped.istitle() and not stripped.endswith("."))):
+            lines.append(f"## {stripped.rstrip(':')}")
+            continue
+
+        lines.append(stripped)
+
+    return "\n".join(lines).strip()
+
+
+def extract_urls(raw_text: str) -> List[str]:
+    """Extract and deduplicate URLs from text while preserving order."""
+    pattern = re.compile(r"https?://[^\s<>()\[\]\"']+", re.IGNORECASE)
+    matches = pattern.findall(raw_text)
+    return _deduplicate_preserve_order(matches)
+
+
+def detect_quality_flags(raw_text: str) -> List[str]:
+    """Detect common extraction or text-quality issues."""
+    lowered = raw_text.lower()
+    flags: List[str] = []
+
+    if "paywall" in lowered or "subscription" in lowered:
+        flags.append("paywall-noise")
+    if "unicode{x" in lowered or "\ufffd" in raw_text or "�" in raw_text:
+        flags.append("corrupted-encoding")
+    if "<table" in lowered or "table" in lowered and "corrupt" in lowered:
+        flags.append("table-extraction-risk")
+    if "equation" in lowered and ("?" in raw_text or "unicode" in lowered):
+        flags.append("equation-extraction-risk")
+
+    return _deduplicate_preserve_order(flags)
+
+
+def score_extraction_confidence(
+    raw_text: str,
+    *,
+    question: str = "",
+    methodology: str = "",
+    claims: Optional[List[str]] = None,
+    link_map: Optional[List[str]] = None,
+    quality_flags: Optional[List[str]] = None,
+) -> int:
+    """Score extraction quality on a 1-10 scale."""
+    score = 4
+    claims = claims or []
+    link_map = link_map or []
+    quality_flags = quality_flags or []
+
+    if question.strip():
+        score += 2
+    if methodology.strip():
+        score += 2
+    if claims:
+        score += 1
+    if len(link_map) >= 3:
+        score += 1
+    if len(raw_text) > 1500:
+        score += 1
+    if detect_quality_flags(raw_text) or quality_flags:
+        score -= 1
+    if quality_flags and any(flag in {"paywall-noise", "corrupted-encoding", "table-extraction-risk", "equation-extraction-risk"} for flag in quality_flags):
+        score -= 1
+
+    return max(1, min(10, score))
+
+
 def ollama_generate(
     prompt: str,
     model: Optional[str] = None,

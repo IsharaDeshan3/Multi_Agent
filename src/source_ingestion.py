@@ -5,20 +5,26 @@ import json
 import os
 import re
 import socket
+import time
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from io import BytesIO
 from pathlib import Path
+from threading import Lock
 from typing import Any, Dict, List, Optional
 from urllib.error import URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
-from src.tools import normalize_text
+from src.tools import normalize_markdown_text, normalize_text
 
 DEFAULT_MAX_SOURCE_BYTES = int(os.getenv("PAPER_SOURCE_MAX_BYTES", str(5 * 1024 * 1024)))
 DEFAULT_TIMEOUT_SECONDS = int(os.getenv("PAPER_SOURCE_TIMEOUT_SECONDS", "20"))
 DEFAULT_ARTIFACT_ROOT = Path("logs/runs")
+DEFAULT_MIN_REQUEST_DELAY_SECONDS = float(os.getenv("PAPER_SOURCE_MIN_REQUEST_DELAY_SECONDS", "0"))
+
+_FETCH_LOCK = Lock()
+_LAST_FETCH_AT = 0.0
 
 
 def _artifact_root() -> Path:
@@ -43,6 +49,7 @@ class PaperSourceResult:
             "resolved_source_url": self.resolved_url,
             "source_content_type": self.content_type,
             "source_artifact_path": self.artifact_path,
+            "source_format": "markdown",
         }
 
 
@@ -101,11 +108,12 @@ def resolve_public_paper_source(
         response.close()
 
     text = _extract_source_text(payload, resolved_url=resolved_url, content_type=content_type)
+    markdown_text = normalize_markdown_text(text)
     artifact_path = _persist_source_artifact(
         source_url=validated_url,
         resolved_url=resolved_url,
         content_type=content_type,
-        text=text,
+        text=markdown_text,
         payload=payload,
         run_id=run_id,
         artifact_root=artifact_root,
@@ -116,7 +124,7 @@ def resolve_public_paper_source(
         resolved_url=resolved_url,
         content_type=content_type,
         artifact_path=str(artifact_path),
-        text=text,
+        text=markdown_text,
     )
 
 
@@ -203,6 +211,14 @@ def _normalize_arxiv_url(source_url: str) -> str:
 
 def _open_validated_url(source_url: str, *, timeout_seconds: int, max_bytes: int):
     """Open a validated URL with a paper-friendly request header set."""
+    if DEFAULT_MIN_REQUEST_DELAY_SECONDS > 0:
+        global _LAST_FETCH_AT
+        with _FETCH_LOCK:
+            elapsed = time.monotonic() - _LAST_FETCH_AT
+            if elapsed < DEFAULT_MIN_REQUEST_DELAY_SECONDS:
+                time.sleep(DEFAULT_MIN_REQUEST_DELAY_SECONDS - elapsed)
+            _LAST_FETCH_AT = time.monotonic()
+
     request = Request(
         source_url,
         headers={
@@ -335,10 +351,12 @@ def _persist_source_artifact(
     suffix = _artifact_suffix(content_type)
     raw_path = run_folder / f"source{suffix}"
     text_path = run_folder / "extracted.txt"
+    markdown_path = run_folder / "extracted.md"
     metadata_path = run_folder / "metadata.json"
 
     raw_path.write_bytes(payload)
     text_path.write_text(text, encoding="utf-8")
+    markdown_path.write_text(text, encoding="utf-8")
     metadata_path.write_text(
         json.dumps(
             {
@@ -347,6 +365,7 @@ def _persist_source_artifact(
                 "content_type": content_type,
                 "raw_path": str(raw_path),
                 "text_path": str(text_path),
+                "markdown_path": str(markdown_path),
             },
             indent=2,
         ),

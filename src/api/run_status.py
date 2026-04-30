@@ -24,6 +24,7 @@ class RunStatus:
     source_url: Optional[str] = None
     resolved_source_url: Optional[str] = None
     source_content_type: Optional[str] = None
+    source_format: Optional[str] = None
     source_artifact_path: Optional[str] = None
     source_status: Optional[str] = None
 
@@ -106,6 +107,7 @@ def run_to_dict(status: RunStatus) -> Dict[str, Any]:
         "source_url": status.source_url,
         "resolved_source_url": status.resolved_source_url,
         "source_content_type": status.source_content_type,
+        "source_format": status.source_format,
         "source_artifact_path": status.source_artifact_path,
         "source_status": status.source_status,
     }

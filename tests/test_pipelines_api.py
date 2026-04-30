@@ -21,6 +21,7 @@ class _FakeSourceResult:
             "resolved_source_url": self.resolved_url,
             "source_content_type": self.content_type,
             "source_artifact_path": self.artifact_path,
+            "source_format": "markdown",
         }
 
 
@@ -58,6 +59,7 @@ def test_pipeline_run_accepts_paper_url_and_persists_source(monkeypatch) -> None
     assert status["source_url"] == "doi:10.1000/example"
     assert status["resolved_source_url"] == "https://doi.org/10.1000/example"
     assert status["source_content_type"] == "application/pdf"
+    assert status["source_format"] == "markdown"
     assert status["source_artifact_path"] == "logs/runs/run-123/source"
     assert status["source_status"] == "fetched"
     assert any("Source fetched" in message for message in status["messages"])

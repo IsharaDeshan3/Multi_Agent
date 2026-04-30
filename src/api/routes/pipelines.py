@@ -70,6 +70,7 @@ def _apply_source_payload(run_id: str, payload: PipelineExecuteRequest, state: d
         source_url=source_result.source_url,
         resolved_source_url=source_result.resolved_url,
         source_content_type=source_result.content_type,
+        source_format=source_result.metadata().get("source_format"),
         source_artifact_path=source_result.artifact_path,
     )
     append_message(run_id, f"Source fetched and stored at {source_result.artifact_path}")

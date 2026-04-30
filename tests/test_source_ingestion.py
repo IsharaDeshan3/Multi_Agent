@@ -44,9 +44,12 @@ def test_resolve_public_paper_source_persists_html_artifact(tmp_path, monkeypatc
 
     assert result.source_url == "https://example.com/paper"
     assert result.resolved_url == "https://example.com/paper"
+    assert "## Research Question" in result.text
     assert "Does the system work?" in result.text
+    assert result.metadata()["source_format"] == "markdown"
     assert Path(result.artifact_path).exists()
     assert (Path(result.artifact_path) / "extracted.txt").exists()
+    assert (Path(result.artifact_path) / "extracted.md").exists()
     assert (Path(result.artifact_path) / "metadata.json").exists()
 
 
