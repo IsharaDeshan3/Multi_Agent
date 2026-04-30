@@ -1,4 +1,4 @@
-# Python
+# Python / backend
 __pycache__/
 *.py[cod]
 *.pyo
@@ -8,15 +8,28 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
 
 # Virtual environments
 .venv/
 venv/
 env/
 
+# Frontend build artifacts
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.turbo/
+
 # Environment files
 .env
 .env.*
+!.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
 
 # IDE/editor
 .vscode/
@@ -25,7 +38,11 @@ env/
 # Runtime artifacts
 logs/
 *.log
+dist/
+build/
+coverage/
 
 # OS files
 .DS_Store
 Thumbs.db
+Desktop.ini
