@@ -1,13 +1,14 @@
 # Multi-Agent Research Review (LangGraph)
 
-This project currently implements the parser stage of a sequential multi-agent system (MAS) for academic paper review using LangGraph.
+This project implements a sequential multi-agent system (MAS) for academic paper review using LangGraph.
 
 ## Architecture
 
 Current implementation:
 1. Parser (Leader)
-
-Auditor, Critic, and Integrator are intentionally left for other team members.
+2. Auditor
+3. Critic
+4. Integrator
 
 All stages operate on one shared state contract: ReviewState.
 
@@ -53,7 +54,7 @@ uvicorn src.api.server:app --reload
 
 ## Handshake for Teammates
 
-I have built the Parser Node. Your node must accept ReviewState as input and return ReviewState as output. Do not save global variables.
+The core pipeline is implemented. New agent nodes must accept ReviewState as input and return ReviewState as output. Do not save global variables.
 
 ## Project Structure
 

@@ -4,16 +4,27 @@ from typing import Optional
 
 from langgraph.graph import END, StateGraph
 
+from src.agents.auditor_agent import auditor_node
+from src.agents.critic_agent import critic_node
+from src.agents.integrator_agent import integrator_node
 from src.agents.parser_agent import parser_node
 from src.state import ReviewState, create_initial_state, validate_review_state
 
 
-def _validated_stage_executor(stage: str):
+STAGE_SEQUENCE = [
+    ("parser", parser_node),
+    ("auditor", auditor_node),
+    ("critic", critic_node),
+    ("integrator", integrator_node),
+]
+
+
+def _validated_stage_executor(stage: str, stage_fn):
     """Wrap a stage with pre/post contract validation boundaries."""
 
     def _runner(state: ReviewState) -> ReviewState:
         normalized = validate_review_state(dict(state))
-        updated = parser_node(normalized)
+        updated = stage_fn(normalized)
         updated["logs"].append(f"Workflow: Stage '{stage}' completed.")
         return validate_review_state(updated)
 
@@ -21,13 +32,18 @@ def _validated_stage_executor(stage: str):
 
 
 def build_workflow():
-    """Build and compile the parser-only LangGraph workflow."""
+    """Build and compile the sequential LangGraph workflow."""
     workflow = StateGraph(ReviewState)
 
-    workflow.add_node("parser", _validated_stage_executor("parser"))
+    for stage_name, stage_fn in STAGE_SEQUENCE:
+        workflow.add_node(stage_name, _validated_stage_executor(stage_name, stage_fn))
 
     workflow.set_entry_point("parser")
-    workflow.add_edge("parser", END)
+    for index, (stage_name, _) in enumerate(STAGE_SEQUENCE):
+        if index == len(STAGE_SEQUENCE) - 1:
+            workflow.add_edge(stage_name, END)
+        else:
+            workflow.add_edge(stage_name, STAGE_SEQUENCE[index + 1][0])
 
     return workflow.compile()
 
@@ -43,18 +59,32 @@ def run_full_pipeline(state: Optional[ReviewState] = None) -> ReviewState:
 
 
 def run_until_stage(stage: str, state: Optional[ReviewState] = None) -> ReviewState:
-    """Execute the parser stage; parser is the only supported stage."""
-    if stage != "parser":
+    """Execute the pipeline up to a requested stage."""
+    stage_names = [name for name, _ in STAGE_SEQUENCE]
+    if stage not in stage_names:
         raise ValueError(f"Unknown stage: {stage}")
 
     normalized = validate_review_state(dict(state or create_initial_state()))
-    return _validated_stage_executor("parser")(normalized)
+    for stage_name, stage_fn in STAGE_SEQUENCE:
+        normalized = _validated_stage_executor(stage_name, stage_fn)(normalized)
+        if stage_name == stage:
+            return normalized
+
+    return normalized
 
 
 def resume_from_stage(stage: str, state: ReviewState) -> ReviewState:
-    """Resume execution from parser; only parser is available right now."""
-    if stage != "parser":
+    """Resume execution from the requested stage."""
+    stage_names = [name for name, _ in STAGE_SEQUENCE]
+    if stage not in stage_names:
         raise ValueError(f"Unknown stage: {stage}")
 
     normalized = validate_review_state(dict(state))
-    return _validated_stage_executor("parser")(normalized)
+    start = False
+    for stage_name, stage_fn in STAGE_SEQUENCE:
+        if stage_name == stage:
+            start = True
+        if start:
+            normalized = _validated_stage_executor(stage_name, stage_fn)(normalized)
+
+    return normalized

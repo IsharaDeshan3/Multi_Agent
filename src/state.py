@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, TypedDict, cast
+from typing import Any, Dict, List, Optional, TypedDict, cast
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -24,6 +24,14 @@ class ResearchDataModel(BaseModel):
     question: str = ""
     methodology: str = ""
     claims: List[str] = Field(default_factory=list)
+    doi: str = ""
+    publication_date: str = ""
+    citation_count: Optional[int] = None
+    critical_citations: List[str] = Field(default_factory=list)
+    link_map: List[str] = Field(default_factory=list)
+    extraction_confidence: int = 0
+    source_format: str = "markdown"
+    quality_flags: List[str] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
