@@ -6,6 +6,9 @@ from typing import Iterator, Optional
 
 from fastapi import APIRouter, HTTPException
 
+from src.agents.auditor_agent import auditor_node
+from src.agents.critic_agent import critic_node
+from src.agents.integrator_agent import integrator_node
 from src.agents.parser_agent import parser_node
 from src.api.schemas import (
     AgentExecuteRequest,
@@ -40,7 +43,7 @@ def _temporary_parser_input_path(parser_input_path: Optional[str]) -> Iterator[N
 
 @router.get("", response_model=AgentListEnvelope)
 def get_agents() -> AgentListEnvelope:
-    """List the currently implemented parser agent."""
+    """List the currently implemented agents."""
     agents = [
         AgentMetadataResponse(
             name="parser",
@@ -48,7 +51,28 @@ def get_agents() -> AgentListEnvelope:
             version="0.1.0",
             description="Leader parser agent.",
             ready="True",
-        )
+        ),
+        AgentMetadataResponse(
+            name="auditor",
+            stage="auditor",
+            version="0.1.0",
+            description="Methodology and data integrity auditor.",
+            ready="True",
+        ),
+        AgentMetadataResponse(
+            name="critic",
+            stage="critic",
+            version="0.1.0",
+            description="Red-team gap finder.",
+            ready="True",
+        ),
+        AgentMetadataResponse(
+            name="integrator",
+            stage="integrator",
+            version="0.1.0",
+            description="Final synthesis and report generator.",
+            ready="True",
+        ),
     ]
     return AgentListEnvelope(agents=agents)
 
@@ -59,7 +83,14 @@ def execute_single_agent(
     payload: AgentExecuteRequest,
 ) -> ReviewStateEnvelope:
     """Execute the parser agent against submitted ReviewState."""
-    if agent_name != "parser":
+    agent_map = {
+        "parser": parser_node,
+        "auditor": auditor_node,
+        "critic": critic_node,
+        "integrator": integrator_node,
+    }
+    agent_fn = agent_map.get(agent_name)
+    if agent_fn is None:
         raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_name}")
 
     input_state = validate_review_state(payload.state.model_dump())
@@ -77,7 +108,7 @@ def execute_single_agent(
 
     try:
         with _temporary_parser_input_path(payload.parser_input_path):
-            updated_state = parser_node(input_state)
+            updated_state = agent_fn(input_state)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

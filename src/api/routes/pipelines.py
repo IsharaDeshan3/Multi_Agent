@@ -10,7 +10,7 @@ from src.api.run_status import append_message, create_run, get_run, run_to_dict,
 from src.api.schemas import PipelineExecuteRequest, ReviewStateEnvelope, RunStatusResponse
 from src.state import ReviewStateModel, create_initial_state, validate_review_state
 from src.source_ingestion import resolve_public_paper_source
-from src.workflow.main import resume_from_stage, run_full_pipeline, run_until_stage
+from src.workflow.main import STAGE_SEQUENCE, resume_from_stage, run_full_pipeline, run_until_stage
 
 router = APIRouter(prefix="/api/v1/pipelines/review", tags=["pipelines"])
 
@@ -103,14 +103,16 @@ def _run_pipeline_background(run_id: str, payload: PipelineExecuteRequest) -> No
 
     try:
         input_state = _apply_source_payload(run_id, payload, input_state)
-        update_run(
-            run_id,
-            current_stage="parser",
-            stage_index=1,
-        )
-        append_message(run_id, "Stage parser started.")
         with _temporary_parser_input_path(payload.parser_input_path):
-            result = run_full_pipeline(input_state)
+            for index, (stage_name, stage_fn) in enumerate(STAGE_SEQUENCE, start=1):
+                update_run(
+                    run_id,
+                    current_stage=stage_name,
+                    stage_index=index,
+                )
+                append_message(run_id, f"Stage {stage_name} started.")
+                input_state = stage_fn(input_state)
+        result = input_state
     except Exception as exc:
         update_run(
             run_id,
@@ -124,8 +126,8 @@ def _run_pipeline_background(run_id: str, payload: PipelineExecuteRequest) -> No
     update_run(
         run_id,
         status="completed",
-        current_stage="parser",
-        stage_index=1,
+        current_stage=STAGE_SEQUENCE[-1][0],
+        stage_index=len(STAGE_SEQUENCE),
         result_state=ReviewStateModel.model_validate(result).model_dump(),
     )
     append_message(run_id, "Run completed.")
@@ -157,7 +159,7 @@ def start_pipeline_run(
     background_tasks: BackgroundTasks,
 ) -> RunStatusResponse:
     """Start a background pipeline run and return its run status."""
-    run = create_run(stage_total=1, source_url=payload.paper_url)
+    run = create_run(stage_total=len(STAGE_SEQUENCE), source_url=payload.paper_url)
     background_tasks.add_task(_run_pipeline_background, run.run_id, payload)
     return RunStatusResponse(**run_to_dict(run))
 
