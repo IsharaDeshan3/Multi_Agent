@@ -1,7 +1,22 @@
 from __future__ import annotations
 
+import json
+import os
+from typing import List
+
+from pydantic import BaseModel, ConfigDict
+
+from src.agents.review_prompts import ORCHESTRATOR_WORLDVIEW_PROMPT, SYNTHESIZER_AGENT_PROMPT
 from src.state import ReviewState, validate_review_state
-from src.tools import normalize_text
+from src.tools import normalize_text, ollama_chat_structured
+
+
+class IntegratorReviewModel(BaseModel):
+    """Structured synthesis output returned by the model-backed integrator."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    final_feedback: str = ""
 
 
 def integrator_node(state: ReviewState) -> ReviewState:
@@ -11,6 +26,63 @@ def integrator_node(state: ReviewState) -> ReviewState:
     audit_results = normalized.get("audit_results", {})
     critique_notes = normalized.get("critique_notes", "")
 
+    deterministic_feedback = _build_deterministic_feedback(research_data, audit_results, critique_notes)
+    model_review = IntegratorReviewModel()
+    mode = "deterministic"
+
+    if _use_ollama():
+        try:
+            model_review = _integrate_with_ollama(normalized)
+            mode = "ollama"
+        except Exception as exc:
+            normalized["logs"].append(f"Integrator Agent: Ollama fallback triggered ({exc}).")
+            mode = "fallback"
+
+    final_feedback = normalize_text(model_review.final_feedback) or deterministic_feedback
+
+    metadata = normalized["research_data"].setdefault("metadata", {})
+    if isinstance(metadata, dict):
+        metadata["integrator_mode"] = mode
+
+    normalized["final_feedback"] = final_feedback
+    normalized["logs"].append(
+        "Integrator Agent: "
+        + (f"{mode} synthesis completed. " if mode != "deterministic" else "")
+        + "Final report generated."
+    )
+
+    return validate_review_state(normalized)
+
+
+def _integrate_with_ollama(state: ReviewState) -> IntegratorReviewModel:
+    """Use phi3 to synthesize the final report."""
+    ollama_model = os.getenv("INTEGRATOR_OLLAMA_MODEL", os.getenv("OLLAMA_MODEL", "phi3"))
+    ollama_base_url = os.getenv("INTEGRATOR_OLLAMA_BASE_URL", os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"))
+    temperature = float(os.getenv("INTEGRATOR_TEMPERATURE", "0"))
+
+    prompt = (
+        f"{ORCHESTRATOR_WORLDVIEW_PROMPT}\n\n"
+        f"{SYNTHESIZER_AGENT_PROMPT}\n\n"
+        "Synthesize a final review report and return JSON only with key final_feedback (string). "
+        "Use the audit results and critique notes to generate a concise report.\n\n"
+        f"Research data: {json.dumps(state.get('research_data', {}), ensure_ascii=False)}\n\n"
+        f"Audit results: {json.dumps(state.get('audit_results', {}), ensure_ascii=False)}\n\n"
+        f"Critique notes:\n{state.get('critique_notes', '')}"
+    )
+
+    data = ollama_chat_structured(
+        prompt=prompt,
+        schema=IntegratorReviewModel.model_json_schema(),
+        model=ollama_model,
+        base_url=ollama_base_url,
+        temperature=temperature,
+    )
+
+    return IntegratorReviewModel.model_validate(data)
+
+
+def _build_deterministic_feedback(research_data, audit_results, critique_notes: str) -> str:
+    """Build the existing deterministic synthesis report."""
     passed = bool(audit_results.get("passed"))
     errors = audit_results.get("errors", []) or []
 
@@ -24,7 +96,7 @@ def integrator_node(state: ReviewState) -> ReviewState:
 
     evidence_log = _build_evidence_log(errors, critique_notes)
 
-    final_feedback = (
+    return (
         "Review Evaluation File\n"
         "Executive Summary:\n"
         f"- Recommendation: {keep_recommendation}\n\n"
@@ -38,10 +110,10 @@ def integrator_node(state: ReviewState) -> ReviewState:
         f"- {verdict}\n"
     )
 
-    normalized["final_feedback"] = normalize_text(final_feedback)
-    normalized["logs"].append("Integrator Agent: Final report generated.")
 
-    return validate_review_state(normalized)
+def _use_ollama() -> bool:
+    """Return whether the integrator should prefer the phi3-backed path."""
+    return os.getenv("INTEGRATOR_USE_OLLAMA", "true").lower() == "true"
 
 
 def _score_novelty(critique_notes: str) -> int:

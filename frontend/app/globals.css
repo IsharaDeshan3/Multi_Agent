@@ -447,6 +447,17 @@ button {
   font-size: 0.95rem;
 }
 
+.report-error {
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(182, 60, 28, 0.22);
+  background: linear-gradient(135deg, rgba(253, 232, 228, 0.96), rgba(255, 248, 241, 0.98));
+  color: #7b2415;
+  font-family: var(--font-display), sans-serif;
+  font-size: 0.98rem;
+  line-height: 1.6;
+}
+
 .meta {
   font-size: 0.85rem;
   color: var(--muted);
