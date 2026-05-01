@@ -73,11 +73,11 @@ def parser_node(state: ReviewState) -> ReviewState:
     parsed_data: Dict[str, Any]
     mode = "deterministic"
 
-    if os.getenv("PARSER_USE_OLLAMA", "false").lower() == "true":
+    if os.getenv("PARSER_USE_OLLAMA", "true").lower() == "true":
         try:
             parsed_data = _extract_with_ollama(content)
             mode = "ollama"
-        except Exception as exc:  # pragma: no cover - fallback branch
+        except Exception as exc:
             parsed_data = extract_research_data(content)
             warnings.append(f"Parser Agent: Ollama fallback triggered ({exc}).")
             mode = "fallback"

@@ -265,6 +265,61 @@ def ollama_generate(
     return str(data.get("response", "")).strip()
 
 
+def ollama_list_models(
+    base_url: Optional[str] = None,
+    timeout_seconds: int = 10,
+) -> List[str]:
+    """List locally available Ollama model names."""
+    resolved_base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    endpoint = f"{resolved_base_url.rstrip('/')}/api/tags"
+
+    req = request.Request(endpoint, method="GET")
+
+    try:
+        with request.urlopen(req, timeout=timeout_seconds) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except URLError as exc:
+        raise RuntimeError(f"Failed to connect to Ollama at {endpoint}: {exc}") from exc
+    except OSError as exc:
+        raise RuntimeError(f"Ollama request failed: {exc}") from exc
+
+    models = data.get("models", [])
+    if not isinstance(models, list):
+        return []
+
+    names: List[str] = []
+    for item in models:
+      if not isinstance(item, dict):
+          continue
+      name = str(item.get("name", "")).strip()
+      if name:
+          names.append(name)
+    return names
+
+
+def ollama_model_is_available(
+    model: str,
+    base_url: Optional[str] = None,
+    timeout_seconds: int = 10,
+) -> bool:
+    """Return True when the requested Ollama model is present locally."""
+    requested_model = model.strip()
+    if not requested_model:
+        return False
+
+    available_models = ollama_list_models(base_url=base_url, timeout_seconds=timeout_seconds)
+    normalized_requested = requested_model.lower()
+    for available in available_models:
+        normalized_available = available.lower()
+        if normalized_available == normalized_requested:
+            return True
+        if normalized_available.startswith(f"{normalized_requested}:"):
+            return True
+        if normalized_available.startswith(f"{normalized_requested}@"):
+            return True
+    return False
+
+
 def ollama_chat_structured(
     prompt: str,
     schema: Dict[str, Any],
@@ -293,6 +348,8 @@ def ollama_chat_structured(
     resolved_base_url = base_url or os.getenv(
         "PARSER_OLLAMA_BASE_URL", os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     )
+    if not ollama_model_is_available(resolved_model, base_url=resolved_base_url, timeout_seconds=timeout_seconds):
+        raise RuntimeError(f"Model not available: {resolved_model}")
     endpoint = f"{resolved_base_url.rstrip('/')}/api/chat"
 
     payload = {
@@ -300,7 +357,7 @@ def ollama_chat_structured(
         "messages": [{"role": "user", "content": prompt}],
         "format": schema,
         "stream": False,
-        "options": {"temperature": temperature},
+        "options": {"temperature": temperature, "num_gpu": 0},
     }
 
     body = json.dumps(payload).encode("utf-8")

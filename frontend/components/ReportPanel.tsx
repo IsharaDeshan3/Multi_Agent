@@ -100,7 +100,11 @@ export function ReportPanel({ runStatus }: ReportPanelProps) {
         </div>
       </div>
 
-      {report ? (
+      {runStatus?.status === "failed" ? (
+        <div className="report-error">
+          {runStatus.error ?? "Model not available. Enable Ollama and pull the requested model before running the parser."}
+        </div>
+      ) : report ? (
         <div className="report-body">
           <div className="report-highlight-row">
             <div className="report-highlight">
