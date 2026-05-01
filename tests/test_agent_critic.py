@@ -6,7 +6,9 @@ from src.agents.critic_agent import critic_node
 from src.state import create_initial_state
 
 
-def test_critic_emits_gap_notes() -> None:
+def test_critic_emits_gap_notes(monkeypatch) -> None:
+    monkeypatch.setenv("CRITIC_USE_OLLAMA", "false")
+
     state = create_initial_state(
         raw_text="Research Question: Can this work?\nMethodology: Simulated test."
     )

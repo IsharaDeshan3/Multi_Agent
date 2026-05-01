@@ -12,6 +12,7 @@ class ReviewState(TypedDict):
     research_data: Dict[str, Any]
     audit_results: Dict[str, Any]
     critique_notes: str
+    final_report: Optional[Dict[str, Any]]
     final_feedback: str
     logs: List[str]
 
@@ -44,6 +45,35 @@ class AuditResultsModel(BaseModel):
     errors: List[str] = Field(default_factory=list)
 
 
+class FinalReportScorecardModel(BaseModel):
+    """Scorecard portion of the synthesized final report."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    novelty: int = 0
+    rigor: int = 0
+    clarity: int = 0
+    narrative: str = ""
+
+
+class FinalReportModel(BaseModel):
+    """Structured end-of-run report assembled by the integrator."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    executive_summary: str = ""
+    recommendation: str = ""
+    final_verdict: str = ""
+    scorecard: FinalReportScorecardModel = Field(default_factory=FinalReportScorecardModel)
+    evidence_log: List[str] = Field(default_factory=list)
+    limitations: List[str] = Field(default_factory=list)
+    ethical_considerations: List[str] = Field(default_factory=list)
+    failure_cases: List[str] = Field(default_factory=list)
+    source_provenance: Dict[str, Any] = Field(default_factory=dict)
+    next_steps: List[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
 class ReviewStateModel(BaseModel):
     """Runtime validation model for the shared agent state."""
 
@@ -53,6 +83,7 @@ class ReviewStateModel(BaseModel):
     research_data: ResearchDataModel = Field(default_factory=ResearchDataModel)
     audit_results: AuditResultsModel = Field(default_factory=AuditResultsModel)
     critique_notes: str = ""
+    final_report: Optional[FinalReportModel] = None
     final_feedback: str = ""
     logs: List[str] = Field(default_factory=list)
 

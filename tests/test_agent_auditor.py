@@ -6,7 +6,9 @@ from src.agents.auditor_agent import auditor_node
 from src.state import create_initial_state
 
 
-def test_auditor_flags_missing_methodology_and_claims() -> None:
+def test_auditor_flags_missing_methodology_and_claims(monkeypatch) -> None:
+    monkeypatch.setenv("AUDITOR_USE_OLLAMA", "false")
+
     state = create_initial_state(raw_text="Research Question: Does this work?")
     state["research_data"] = {
         "question": "Does this work?",
@@ -26,7 +28,9 @@ def test_auditor_flags_missing_methodology_and_claims() -> None:
 
 
 def test_auditor_uses_phi3_when_available(monkeypatch) -> None:
-    state = create_initial_state(raw_text="Research Question: Does this work?")
+    state = create_initial_state(
+        raw_text="Research Question: Does this work?\nResults: accuracy 93% on the benchmark."
+    )
     state["research_data"] = {
         "question": "Does this work?",
         "methodology": "Model-backed audit method.",
@@ -50,4 +54,5 @@ def test_auditor_uses_phi3_when_available(monkeypatch) -> None:
     assert updated["audit_results"]["passed"] is True
     assert updated["audit_results"]["errors"] == []
     assert updated["research_data"]["metadata"]["auditor_mode"] == "ollama"
+    assert updated["research_data"]["metadata"].get("mode") in {None, "deterministic"}
     assert any("ollama review completed" in line.lower() for line in updated["logs"])

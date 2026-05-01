@@ -210,49 +210,28 @@ button {
   font-size: 1.02rem;
 }
 
-.report-accordion {
+.report-document {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.report-section {
+.report-section-card {
   border-radius: 16px;
   border: 1px solid rgba(228, 87, 46, 0.12);
   background: rgba(255, 255, 255, 0.75);
-  overflow: hidden;
+  padding: 16px 18px 18px;
 }
 
-.report-section summary {
-  list-style: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 16px 18px;
+.report-section-card h3 {
+  margin: 0 0 10px;
   font-family: var(--font-display), sans-serif;
   font-size: 0.98rem;
+  letter-spacing: -0.02em;
 }
 
-.report-section summary::-webkit-details-marker {
-  display: none;
-}
-
-.report-section-toggle {
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--muted);
-}
-
-.report-section[open] {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
-
-.report-section pre {
+.report-section-card pre {
   margin: 0;
-  padding: 0 18px 18px;
   color: var(--ink);
   font-family: var(--font-body), serif;
   font-size: 0.95rem;
