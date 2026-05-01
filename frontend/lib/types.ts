@@ -8,8 +8,30 @@ export type ReviewState = {
   research_data: Record<string, unknown>;
   audit_results: Record<string, unknown>;
   critique_notes: string;
+  final_report?: FinalReport | null;
   final_feedback: string;
   logs: string[];
+};
+
+export type FinalReportScorecard = {
+  novelty: number;
+  rigor: number;
+  clarity: number;
+  narrative: string;
+};
+
+export type FinalReport = {
+  executive_summary: string;
+  recommendation: string;
+  final_verdict: string;
+  scorecard: FinalReportScorecard;
+  evidence_log: string[];
+  limitations: string[];
+  ethical_considerations: string[];
+  failure_cases: string[];
+  source_provenance: Record<string, unknown>;
+  next_steps: string[];
+  markdown: string;
 };
 
 export type RunStatus = {

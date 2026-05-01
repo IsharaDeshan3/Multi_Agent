@@ -160,7 +160,9 @@ def test_ollama_structured_requests_force_cpu(monkeypatch) -> None:
     assert result["question"] == "Q"
 
 
-def test_parser_node_preserves_state_contract() -> None:
+def test_parser_node_preserves_state_contract(monkeypatch) -> None:
+    monkeypatch.setenv("PARSER_USE_OLLAMA", "false")
+
     initial = create_initial_state(raw_text="Research Question: Contract stays stable.")
     updated = parser_node(initial)
 
